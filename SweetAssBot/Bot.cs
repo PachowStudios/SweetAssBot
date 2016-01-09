@@ -123,7 +123,7 @@ namespace SweetAssBot
 
       sb.AppendLine($">[{context.Replace(phrase, swappedPhrase)}](https://xkcd.com/37/)");
       sb.AppendLine("*****");
-      sb.AppendLine(@"^^(I am a bot. Send hatemail to /u/ryansworld10)");
+      sb.AppendLine(@"I'm a bot. [Check out my source code on GitHub](https://github.com/PachowStudios/SweetAssBot/");
 
       comment.Reply(sb.ToString());
 
