@@ -11,15 +11,14 @@ namespace SweetAssBot
   {
     private const string Username = "sweet_ass-bot";
 
-    private static readonly BotSettings Settings = new BotSettings()
+    private static readonly BotSettings Settings = new BotSettings
     {
-      Subreddits = new List<string>
+      WhitelistedSubreddits = new List<string>
       {
-        "funny"
+        "pcmasterrace"
       },
-      SubredditMode = SubredditMode.Whitelist,
-      PostsPerRun = 5,
-      ResponsesPerThread = 5,
+      PostsPerRun = 25,
+      ResponsesPerPost = 5,
       DelayBetweenRuns = TimeSpan.FromSeconds(30)
     };
 

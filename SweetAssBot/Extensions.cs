@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace SweetAssBot
 {
-  public static class LinqExtensions
+  public static class Extensions
   {
     public static bool None<T>(this IEnumerable<T> source, Func<T, bool> predicate)
       => !source.Any(predicate);

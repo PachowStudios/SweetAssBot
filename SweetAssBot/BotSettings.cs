@@ -3,35 +3,23 @@ using System.Collections.Generic;
 
 namespace SweetAssBot
 {
-  public enum SubredditMode
+  public struct BotSettings
   {
-    Whitelist,
-    Blacklist
-  }
+    public List<string> WhitelistedSubreddits { get; set; }
+    public int PostsPerRun { get; set; }
+    public int ResponsesPerPost { get; set; }
+    public TimeSpan DelayBetweenRuns { get; set; }
 
-  public class BotSettings
-  {
-    private readonly List<string> subreddits = new List<string>();
-
-    public SubredditMode SubredditMode { get; set; } = SubredditMode.Whitelist;
-
-    public List<string> Subreddits
+    public BotSettings(
+      List<string> whitelistedSubreddits,
+      int postsPerRun,
+      int responsesPerPost,
+      TimeSpan delayBetweenRuns)
     {
-      get { return this.subreddits; }
-      set
-      {
-        this.subreddits.Clear();
-
-        foreach (var subreddit in value)
-          this.subreddits.Add(
-            !subreddit.StartsWith("/r/")
-              ? subreddit.Insert(0, "/r/")
-              : subreddit);
-      }
+      WhitelistedSubreddits = whitelistedSubreddits;
+      PostsPerRun = postsPerRun;
+      ResponsesPerPost = responsesPerPost;
+      DelayBetweenRuns = delayBetweenRuns;
     }
-
-    public int PostsPerRun { get; set; } = 25;
-    public int ResponsesPerThread { get; set; } = 5;
-    public TimeSpan DelayBetweenRuns { get; set; } = TimeSpan.FromSeconds(30);
   }
 }
