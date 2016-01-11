@@ -15,18 +15,18 @@ namespace SweetAssBot
     private const string PhrasePattern = @"\b\w+-ass\s\b\w+\b";
     private const string CommentPattern = @"(\b[^.?!]*{0}[^.?!]*\.?)";
 
+    private readonly object threadLock = new object();
+
     private BotSettings Settings { get; }
     private Reddit Reddit { get; }
 
-    private List<Post> ProcessingPosts { get; set; } 
+    private List<Post> ProcessingPosts { get; } 
     private List<Post> ProcessedPosts { get; }
+    private List<string> Replies { get; } 
     private Regex PhraseRegex { get; }
     private Regex CommentRegex { get; }
 
     private CancellationToken CancellationToken { get; set; }
-
-    public Bot(Reddit reddit)
-      : this(reddit, new BotSettings()) { }
 
     public Bot(Reddit reddit, BotSettings settings)
     {
@@ -35,6 +35,7 @@ namespace SweetAssBot
 
       ProcessingPosts = new List<Post>();
       ProcessedPosts = new List<Post>();
+      Replies = new List<string>();
       PhraseRegex = new Regex(PhrasePattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
       CommentRegex = new Regex(
         string.Format(CommentPattern, PhrasePattern),
@@ -52,7 +53,7 @@ namespace SweetAssBot
         await RunAsync();
 
         Console.Clear();
-        Console.WriteLine($"\nSleeping for {Settings.DelayBetweenRuns}\n");
+        Console.WriteLine($"Sleeping for {Settings.DelayBetweenRuns}\n");
 
         await Task.Delay(Settings.DelayBetweenRuns, CancellationToken);
 
@@ -63,7 +64,11 @@ namespace SweetAssBot
 
     private async Task RunAsync()
     {
-      ProcessingPosts.Clear();
+      lock (this.threadLock)
+      {
+        ProcessingPosts.Clear();
+        Replies.Clear();
+      }
 
       var posts = await GetPostsAsync();
 
@@ -78,13 +83,15 @@ namespace SweetAssBot
         Settings.WhitelistedSubreddits.Select(Reddit.GetSubredditAsync));
 
       return subreddits
+        .OrderBy(s => Guid.NewGuid())
         .SelectMany(s => s.New)
-        .Where(p => ProcessedPosts.None(pr => pr.Title == p.Title))
+        .Where(p => ProcessedPosts.None(pr => pr.Id == p.Id))
         .Take(Settings.PostsPerRun);
     }
 
     private void ProcessPost(Post post)
     {
+      CheckIsCancelled();
       StartProcessingPost(post);
       GetComments(post).ForEach(ReplyToComment);
       FinishProcessingPost(post);
@@ -95,46 +102,61 @@ namespace SweetAssBot
         .ListComments()
         .Where(c
           => c.Author != Reddit.User.Name
+          && !string.IsNullOrEmpty(c.Body)
           && c.Comments.None(sc => sc.Author == Reddit.User.Name)
-          && CommentRegex.IsMatch(c.Body ?? string.Empty))
+          && CommentRegex.IsMatch(c.Body))
         .Take(Settings.ResponsesPerPost);
 
     private void ReplyToComment(Comment comment)
     {
       var context = CommentRegex.Match(comment.Body).Value;
       var phrase = PhraseRegex.Match(context).Value;
-      var swappedPhrase = Regex.Replace(phrase, @"-ass\s", @"\sass-", RegexOptions.IgnoreCase);
+      var swappedPhrase = Regex.Replace(phrase, "-ass ", " ass-", RegexOptions.IgnoreCase);
       var sb = new StringBuilder();
 
       sb.AppendLine($">[{context.Replace(phrase, swappedPhrase)}](https://xkcd.com/37/)");
+      sb.AppendLine();
       sb.AppendLine("*****");
       sb.AppendLine(@"I'm a bot. [Check out my source code on GitHub](https://github.com/PachowStudios/SweetAssBot/");
 
       comment.Reply(sb.ToString());
-
-      Console.WriteLine($"\nReplied to {comment.Author} => {context}\n");
+      Replies.Add($"{comment.Author} => {context}\n");
     }
 
     private void StartProcessingPost(Post post)
     {
-      ProcessingPosts.Add(post);
-      PrintProcessingPosts();
+      lock (this.threadLock)
+      {
+        ProcessingPosts.Add(post);
+        PrintStatus();
+      }
     }
 
     private void FinishProcessingPost(Post post)
     {
-      ProcessingPosts.Remove(post);
-      ProcessedPosts.Add(post);
-      PrintProcessingPosts();
+      lock (this.threadLock)
+      {
+        ProcessingPosts.Remove(post);
+        ProcessedPosts.Add(post);
+        PrintStatus();
+      }
     }
 
-    private void PrintProcessingPosts()
+    private void PrintStatus()
     {
       Console.Clear();
       Console.WriteLine("***** Processing *****");
 
       foreach (var post in ProcessingPosts)
-        Console.WriteLine(post.Title);
+        Console.WriteLine($"{post.SubredditName} => {post.Title}");
+
+      if (Replies.IsEmpty())
+        return;
+
+      Console.WriteLine("***** Replies *****");
+
+      foreach (var reply in Replies)
+        Console.WriteLine(reply);
     }
 
     private bool CheckIsCancelled()

@@ -15,7 +15,7 @@ namespace SweetAssBot
     {
       WhitelistedSubreddits = new List<string>
       {
-        "pcmasterrace"
+        "hearthstone"
       },
       PostsPerRun = 25,
       ResponsesPerPost = 5,
